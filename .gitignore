@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dataset (1.4GB — too large for GitHub)
+dataset/
+
+# Large downloads
+*.zip
+
+# Processed data (108MB)
+data/processed/*.parquet
+
+# Models (large binary — keep metrics.json)
+models/*.joblib
+
+# Environment
+.env
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
