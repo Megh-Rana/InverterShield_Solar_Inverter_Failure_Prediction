@@ -1,9 +1,6 @@
 import { useState } from 'react'
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard, Activity, BarChart3, MessageSquare,
-  Menu, X, Zap, Sun
-} from 'lucide-react'
+import { Routes, Route, NavLink } from 'react-router-dom'
+import { LayoutDashboard, Activity, BarChart3, MessageSquare, Menu, X } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Prediction from './pages/Prediction'
 import Performance from './pages/Performance'
@@ -18,18 +15,14 @@ const navItems = [
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
 
   return (
     <div className="app-layout">
       {/* Mobile Header */}
       <header className="mobile-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="brand-icon"><Sun size={14} color="white" /></div>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>SolarGuard</span>
-        </div>
+        <span style={{ fontSize: 14, fontWeight: 600 }}>InverterShield</span>
         <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       </header>
 
@@ -42,7 +35,6 @@ export default function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon"><Sun size={16} color="white" /></div>
           <div>
             <h1>InverterShield</h1>
             <span>Predictive Maintenance</span>
@@ -65,7 +57,7 @@ export default function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <p>XGBoost · SHAP · Gemini AI<br />Binary F1: 0.918 · AUC: 0.901</p>
+          <p>XGBoost · SHAP · Gemini AI</p>
         </div>
       </aside>
 
