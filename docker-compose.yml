@@ -2,18 +2,18 @@ version: '3.8'
 
 services:
   api:
-    build: .
-    container_name: solar-inverter-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: invertershield-api
     ports:
       - "8000:8000"
     environment:
       - MODEL_DIR=/app/models
-      - DATA_DIR=/app/data/processed
       - PYTHONPATH=/app
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     volumes:
       - ./models:/app/models
-      - ./data/processed:/app/data/processed
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -21,20 +21,12 @@ services:
       timeout: 10s
       retries: 3
 
-  dashboard:
-    build: .
-    container_name: solar-inverter-dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: invertershield-frontend
     ports:
-      - "8501:8501"
-    environment:
-      - API_URL=http://api:8000
-      - MODEL_DIR=/app/models
-      - DATA_DIR=/app/data/processed
-      - PYTHONPATH=/app
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-    volumes:
-      - ./models:/app/models
-      - ./data/processed:/app/data/processed
+      - "5173:80"
     depends_on:
       - api
-    command: streamlit run src/dashboard/app.py --server.port 8501 --server.address 0.0.0.0

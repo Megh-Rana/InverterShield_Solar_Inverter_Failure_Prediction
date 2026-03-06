@@ -1,179 +1,141 @@
-# ☀️ SolarGuard AI — Solar Inverter Failure Prediction Platform
+# ☀️ InverterShield — AI-Driven Solar Inverter Failure Prediction
 
-AI-driven predictive maintenance platform for solar inverters, built for hackathon submission. Uses XGBoost for failure prediction, SHAP for explainability, and Generative AI for operational insights.
+> Predictive maintenance platform for solar inverters using XGBoost, SHAP explainability, and Generative AI insights.
 
-## 🏗 Architecture
+## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Streamlit   │────▶│  FastAPI      │────▶│  XGBoost    │
-│  Dashboard   │     │  Backend API  │     │  Models     │
-│  (Port 8501) │     │  (Port 8000)  │     │  + SHAP     │
-└─────────────┘     └──────┬───────┘     └─────────────┘
-                           │
-                    ┌──────▼───────┐
-                    │  GenAI       │
-                    │  Gemini /    │
-                    │  Ollama      │
-                    └──────────────┘
+┌──────────────────┐       ┌──────────────────┐       ┌──────────────────┐
+│   React Frontend │──────▶│   FastAPI Backend │──────▶│    ML Models     │
+│   (Port 5173)    │  API  │   (Port 8000)    │       │  XGBoost + SHAP  │
+│                  │       │                  │       │  Isolation Forest │
+│  • Dashboard     │       │  • /predict      │       └──────────────────┘
+│  • Predictions   │       │  • /dashboard    │                │
+│  • Model Metrics │       │  • /chat         │       ┌────────▼─────────┐
+│  • AI Copilot    │       │  • /health       │       │   GenAI Layer    │
+└──────────────────┘       └──────────────────┘       │  Gemini / Ollama │
+                                                      └──────────────────┘
 ```
 
-## 📊 Model Performance
+## Model Performance
 
-| Model | Metric | Score |
-|-------|--------|-------|
-| Binary (Failure/No Failure) | CV Mean F1 | 0.918 |
-| Binary | CV Mean Precision | 0.924 |
-| Binary | CV Mean AUC | 0.901 |
-| Multi-Class (No Risk/Degradation/Shutdown) | CV Mean F1 (macro) | 0.789 |
-| Anomaly Detection | Isolation Forest | ✅ |
+| Model                      | Metric         | Score |
+|----------------------------|----------------|-------|
+| Binary (Failure/No Fail)   | CV Mean F1     | 0.918 |
+| Binary                     | CV Mean AUC    | 0.901 |
+| Binary                     | CV Precision   | 0.924 |
+| Binary                     | Holdout F1     | 0.908 |
+| Multi-Class (3-way)        | CV F1 (macro)  | 0.789 |
+| Anomaly Detection          | Isolation Forest | ✅    |
 
-**Top SHAP Features:** month, inv_temp_7d_mean, meter_kwh_import, inv_temp_24h_mean, smu_string_mean_7d_std
+**Top SHAP Features:** `month`, `inv_temp_7d_mean`, `meter_kwh_import`, `inv_temp_24h_mean`, `smu_string_mean_7d_std`
 
-## 📁 Dataset
+## Dataset
 
-- **3 solar plants**, 6 CSV files, ~6M raw rows
-- **32 unique inverters** across varying schemas (1-12 inverters per data logger)
+- **3 solar plants** · 6 CSV files · 32 inverters · ~6M raw rows
 - **2-year span**: March 2024 — March 2026
-- Heterogeneous schemas normalized into unified per-inverter format
-- Aggregated to hourly intervals → **509,128 rows × 140 features**
+- Aggregated to **hourly intervals → 509,128 rows × 140 features**
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- Python 3.13+
-- ~8GB RAM (for model training; inference needs <2GB)
+- Python 3.13+, Node.js 18+
+- ~8GB RAM for training; inference < 2GB
 
 ### Install & Run
 
 ```bash
-# Clone and setup
-cd solar_inverter
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# 1. Clone
+git clone https://github.com/Megh-Rana/InverterShield_Solar_Inverter_Failure_Prediction.git
+cd InverterShield_Solar_Inverter_Failure_Prediction
 
-# Train models (takes ~24 min)
+# 2. Train models (optional — pre-trained models included via LFS)
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 python run_pipeline.py --dataset-dir dataset --output-dir models --save-processed
 
-# Run API server
+# 3. Start API server
 PYTHONPATH=. python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
-# Run Dashboard (separate terminal)
-PYTHONPATH=. python -m streamlit run src/dashboard/app.py --server.port 8501
+# 4. Start React frontend (separate terminal)
+cd frontend && npm install && npm run dev
 ```
 
 ### Docker
 
 ```bash
 docker-compose up --build
-# API: http://localhost:8000
-# Dashboard: http://localhost:8501
+# API:      http://localhost:8000
+# Frontend: http://localhost:5173
 ```
 
 ### GenAI Setup (Optional)
 
 ```bash
-# For Gemini (recommended)
-export GEMINI_API_KEY=your_key_here
-
-# For Ollama (local, no API key needed)
-ollama pull llama3
+export GEMINI_API_KEY=your_key_here    # For Gemini
+ollama pull llama3                      # For local Ollama
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/predict` | POST | Single inverter prediction |
-| `/predict/batch` | POST | Batch predictions |
-| `/dashboard` | GET | Dashboard summary data |
-| `/chat` | POST | GenAI chat (Gemini/Ollama) |
-| `/model/info` | GET | Model metrics & SHAP features |
+| Endpoint         | Method | Description                     |
+|------------------|--------|---------------------------------|
+| `/health`        | GET    | Health check + model status     |
+| `/predict`       | POST   | Single inverter prediction      |
+| `/predict/batch` | POST   | Batch predictions               |
+| `/dashboard`     | GET    | Dashboard summary + SHAP        |
+| `/chat`          | POST   | GenAI chat (Gemini/Ollama)      |
+| `/model/info`    | GET    | Model metrics & feature count   |
 
-### Example Prediction Request
-
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "features": {
-      "inv_power": 5000,
-      "inv_temp": 55,
-      "meter_freq": 49.8,
-      "alarm_count_7d": 3
-    },
-    "inverter_id": "Plant_1_INV0"
-  }'
-```
-
-## 📂 Project Structure
+## Project Structure
 
 ```
-solar_inverter/
-├── run_pipeline.py           # ML pipeline orchestrator
-├── requirements.txt
+├── frontend/                 # React + Vite dashboard
+│   └── src/
+│       ├── pages/            # Dashboard, Prediction, Performance, Chat
+│       ├── api.js            # FastAPI client
+│       ├── App.jsx           # Layout + routing
+│       └── index.css         # Design system
+├── src/
+│   ├── api/main.py           # FastAPI backend
+│   ├── genai/llm.py          # Gemini/Ollama integration
+│   ├── ml/trainer.py         # XGBoost + SHAP + Isolation Forest
+│   └── data_processing/      # CSV loader + feature engineering
+├── models/                   # Trained models (Git LFS)
 ├── Dockerfile
 ├── docker-compose.yml
-├── dataset/                  # Raw CSV telemetry data
-│   ├── Plant 1/             # 2 loggers, 23 inverters
-│   ├── Plant 2/             # 2 loggers, 7 inverters
-│   └── Plant 3/             # 2 loggers, 2 inverters
-├── data/processed/           # Featured data (parquet)
-├── models/                   # Trained model artifacts
-│   ├── binary_model.joblib
-│   ├── multiclass_model.joblib
-│   ├── anomaly_model.joblib
-│   ├── feature_names.joblib
-│   └── metrics.json
-├── src/
-│   ├── data_processing/
-│   │   ├── loader.py         # CSV loading + hourly aggregation
-│   │   └── features.py       # Feature engineering
-│   ├── ml/
-│   │   └── trainer.py        # XGBoost + SHAP + Isolation Forest
-│   ├── api/
-│   │   └── main.py           # FastAPI backend
-│   ├── genai/
-│   │   └── llm.py            # Gemini/Ollama integration
-│   └── dashboard/
-│       └── app.py            # Streamlit frontend
-└── docs/
-    ├── PRD.md
-    └── TRD.md
+└── requirements.txt
 ```
 
-## 🧠 ML Pipeline
+## ML Pipeline
 
-1. **Data Loading**: Normalize heterogeneous CSV schemas → unified per-inverter rows
-2. **Hourly Aggregation**: 6M rows → 509K rows (mean for continuous, max for alarms)
-3. **Feature Engineering**: 140 features including rolling stats, alarm features, KPIs
-4. **Anomaly Detection**: Isolation Forest adds anomaly scores as features
-5. **Walk-Forward CV**: 5-fold time-series aware cross-validation
-6. **XGBoost Training**: Binary (failure/no failure) + Multi-class (no risk/degrade/shutdown)
-7. **SHAP Analysis**: TreeExplainer for feature importance and per-prediction explanations
+1. **Load** — Normalize heterogeneous CSV schemas → unified per-inverter rows
+2. **Aggregate** — 6M rows → 509K hourly rows (mean continuous, max alarms)
+3. **Engineer** — 140 features: rolling stats, alarm features, KPIs, time features
+4. **Detect** — Isolation Forest anomaly detection → scores as features
+5. **Validate** — 5-fold walk-forward cross-validation (TimeSeriesSplit)
+6. **Train** — XGBoost binary + multi-class classifiers
+7. **Explain** — SHAP TreeExplainer for feature importance
 
-## 📋 Hackathon Requirements Checklist
+## Hackathon Checklist
 
-| Requirement | Status | Implementation |
-|-------------|--------|----------------|
-| ML model for failure prediction | ✅ | XGBoost binary + multi-class |
-| 7-10 day prediction window | ✅ | 7-day forward-looking target |
-| Feature engineering | ✅ | 140 features (rolling, alarm, KPI) |
-| Cross-validation | ✅ | Walk-forward (TimeSeriesSplit) 5-fold |
-| Model explainability (SHAP/LIME) | ✅ | SHAP TreeExplainer |
-| Anomaly detection | ✅ | Isolation Forest |
-| GenAI summaries | ✅ | Gemini 1.5 Flash + Ollama fallback |
-| REST API | ✅ | FastAPI with 6 endpoints |
-| Interactive dashboard | ✅ | Streamlit with 4 pages |
-| Docker containerization | ✅ | Dockerfile + docker-compose |
+| Requirement                  | Status | Implementation                     |
+|------------------------------|--------|-------------------------------------|
+| Failure prediction model     | ✅      | XGBoost binary + multi-class       |
+| 7-10 day prediction window   | ✅      | 7-day forward-looking target       |
+| Feature engineering          | ✅      | 140 features                        |
+| Cross-validation             | ✅      | Walk-forward 5-fold                 |
+| Explainability (SHAP/LIME)   | ✅      | SHAP TreeExplainer                  |
+| Anomaly detection            | ✅      | Isolation Forest                    |
+| GenAI summaries              | ✅      | Gemini 2.0 Flash + Ollama fallback  |
+| REST API                     | ✅      | FastAPI (6 endpoints)               |
+| Interactive dashboard        | ✅      | React + Recharts                    |
+| Docker containerization      | ✅      | Dockerfile + docker-compose         |
 
-## 🛠 Tech Stack
+## Tech Stack
 
-- **ML**: XGBoost, scikit-learn, SHAP, pandas
-- **API**: FastAPI, Uvicorn
-- **Frontend**: Streamlit, Plotly
-- **GenAI**: Google Gemini 1.5 Flash, Ollama (local)
-- **Infra**: Docker, docker-compose
-- **Data**: pyarrow (parquet), numpy
+**ML:** XGBoost · scikit-learn · SHAP · pandas · numpy  
+**API:** FastAPI · Uvicorn  
+**Frontend:** React · Vite · Recharts · Framer Motion · Lucide  
+**GenAI:** Google Gemini 2.0 Flash · Ollama  
+**Infra:** Docker · docker-compose · Git LFS
