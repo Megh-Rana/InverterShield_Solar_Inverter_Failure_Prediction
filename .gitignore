@@ -23,17 +23,11 @@ env/
 .DS_Store
 Thumbs.db
 
-# Dataset (1.4GB — too large for GitHub)
+# Dataset (1.4GB raw CSVs)
 dataset/
 
 # Large downloads
 *.zip
-
-# Processed data (108MB)
-data/processed/*.parquet
-
-# Models (large binary — keep metrics.json)
-models/*.joblib
 
 # Environment
 .env
