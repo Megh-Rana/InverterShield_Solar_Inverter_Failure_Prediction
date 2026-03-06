@@ -171,6 +171,8 @@ def load_all_plants(dataset_dir: str, hourly: bool = True) -> pd.DataFrame:
         for csv_file in csv_files:
             df = load_single_csv(csv_file, plant_name)
             if not df.empty:
+                if hourly:
+                    df = _aggregate_hourly(df)
                 all_dfs.append(df)
 
     if not all_dfs:
@@ -178,13 +180,10 @@ def load_all_plants(dataset_dir: str, hourly: bool = True) -> pd.DataFrame:
 
     unified = pd.concat(all_dfs, ignore_index=True)
     unified = unified.sort_values(["inverter_id", "datetime"]).reset_index(drop=True)
-    print(f"\nRaw total: {len(unified)} rows, {unified['inverter_id'].nunique()} inverters")
-
     if hourly:
-        print("Aggregating to hourly intervals...")
-        unified = _aggregate_hourly(unified)
-        unified = unified.sort_values(["inverter_id", "datetime"]).reset_index(drop=True)
         print(f"Hourly total: {len(unified)} rows")
+    else:
+        print(f"\nRaw total: {len(unified)} rows, {unified['inverter_id'].nunique()} inverters")
 
     print(f"Date range: {unified['datetime'].min()} to {unified['datetime'].max()}")
     return unified

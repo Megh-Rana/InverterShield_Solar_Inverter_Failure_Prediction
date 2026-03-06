@@ -23,11 +23,13 @@ env/
 .DS_Store
 Thumbs.db
 
-# Dataset (1.4GB raw CSVs)
+# Dataset (large files)
+data/
 dataset/
 
 # Large downloads
 *.zip
+*.pdf
 
 # Environment
 .env
@@ -35,4 +37,12 @@ dataset/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Node
 node_modules/
+
+# Backend log
+backend_venv.log
+
+# Gemini
+.gemini/

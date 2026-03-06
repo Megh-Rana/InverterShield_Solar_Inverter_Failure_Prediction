@@ -8,26 +8,26 @@
 }
 
 :root {
-  --bg: #f6f5f2;
+  --bg: #f8f9fa;
   --bg-white: #ffffff;
-  --bg-hover: #fafaf8;
+  --bg-hover: #eef1f4;
 
-  --border: #eae8e4;
-  --border-hover: #dddbd6;
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
 
-  --text: #202020;
-  --text-2: #555;
-  --text-3: #999;
-  --text-4: #c4c4c4;
+  --text: #0f172a;
+  --text-2: #334155;
+  --text-3: #64748b;
+  --text-4: #94a3b8;
 
-  --coral: #d9635e;
-  --coral-bg: rgba(217, 99, 94, 0.07);
-  --green: #3ea87d;
-  --green-bg: rgba(62, 168, 125, 0.07);
-  --yellow: #c09a3a;
-  --yellow-bg: rgba(192, 154, 58, 0.07);
-  --blue: #5180b5;
-  --blue-bg: rgba(81, 128, 181, 0.07);
+  --coral: #e11d48;
+  --coral-bg: rgba(225, 29, 72, 0.08);
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.08);
+  --yellow: #ca8a04;
+  --yellow-bg: rgba(202, 138, 4, 0.08);
+  --blue: #2563eb;
+  --blue-bg: rgba(37, 99, 235, 0.08);
 
   --radius: 10px;
   --radius-lg: 14px;
@@ -77,7 +77,7 @@ button {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 200px;
+  width: 260px;
   background: var(--bg-white);
   border-right: 1px solid var(--border);
   display: flex;
@@ -153,12 +153,12 @@ button {
 }
 
 .main-content {
-  margin-left: 200px;
+  margin-left: 260px;
   flex: 1;
 }
 
 .page-container {
-  max-width: 1080px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 28px 28px 60px;
 }
@@ -617,55 +617,137 @@ button {
 
 /* ── Prediction ──────────────────────────────────── */
 
-.param-grid {
+.pred-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.pred-inputs {
+  min-width: 0;
+}
+
+.pred-results {
+  min-width: 0;
+}
+
+.param-section {
+  border-top: 1px solid var(--border);
+}
+
+.param-section:first-of-type {
+  border-top: none;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.section-head:hover {
+  background: var(--bg);
+}
+
+.section-head .field-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-4);
+  font-weight: 400;
+  margin-right: 4px;
+}
+
+.param-grid-new {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
+  padding: 4px 12px 12px;
+  overflow: hidden;
 }
 
-.param-group {
+.param-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
-.param-group label {
-  font-size: 11.5px;
+.param-item label {
+  font-size: 10.5px;
   font-weight: 500;
-  color: var(--text-2);
+  color: var(--text-3);
 }
 
-.param-group input {
-  padding: 8px 10px;
+.param-item label .unit {
+  font-weight: 400;
+  color: var(--text-4);
+  margin-left: 3px;
+  font-size: 10px;
+}
+
+.param-item input {
+  padding: 6px 8px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 12.5px;
   font-family: inherit;
   width: 100%;
   min-width: 0;
+  transition: border-color 0.15s;
 }
 
-.param-group input:focus {
+.param-item input:focus {
   border-color: var(--coral);
   outline: none;
 }
 
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+
+.reset-btn:hover {
+  color: var(--coral);
+  border-color: var(--coral);
+}
+
 .run-btn {
-  grid-column: 1 / -1;
-  margin-top: 4px;
-  padding: 9px;
+  display: block;
+  width: calc(100% - 24px);
+  margin: 4px 12px 12px;
+  padding: 10px;
   background: var(--coral);
   color: white;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   transition: background 0.15s;
+  letter-spacing: 0.01em;
 }
 
 .run-btn:hover {
   background: #c4524d;
+}
+
+.run-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .result-row {
@@ -693,6 +775,22 @@ button {
   font-size: 11px;
   color: var(--text-3);
   margin-top: 2px;
+}
+
+.recommendation-box {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
 }
 
 /* ── Fold List ───────────────────────────────────── */
@@ -774,7 +872,8 @@ button {
 
   .grid-2,
   .grid-5-7,
-  .grid-7-5 {
+  .grid-7-5,
+  .pred-layout {
     grid-template-columns: 1fr;
   }
 
@@ -800,7 +899,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .param-grid {
+  .param-grid-new {
     grid-template-columns: 1fr;
   }
 }

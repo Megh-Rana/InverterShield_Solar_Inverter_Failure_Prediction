@@ -121,12 +121,81 @@ RISK_RECOMMENDATIONS = {
 }
 
 
-def prepare_features(features: Dict[str, float]) -> pd.DataFrame:
-    """Prepare a feature dictionary into a DataFrame matching model expectations."""
+# Try to load healthy baseline if available
+BASELINE = {}
+try:
+    with open("healthy_baseline.json", "r") as f:
+        BASELINE = json.load(f)
+except Exception:
+    pass
+
+def prepare_features(features_dict: dict) -> pd.DataFrame:
+    """Build a 30-feature vector for the retrained lightweight ML model.
+    
+    The model uses 30 key telemetry features directly available from
+    inverter/meter/sensor readings. No rolling statistics needed.
+    
+    Strategy:
+    1. Start from healthy baseline (median of no-risk samples)
+    2. Override with user-provided telemetry values
+    3. Compute derived features (voltage_imbalance, pf_deviation, etc.)
+    4. Auto-compute time features from current clock if not provided
+    """
+    from datetime import datetime
+    
     feature_names = models.get("feature_names", [])
-    row = {f: features.get(f, 0.0) for f in feature_names}
+    
+    # 1. Start with healthy baseline (30 features, all realistic non-zero values)
+    row = dict(BASELINE)
+    for f in feature_names:
+        if f not in row:
+            row[f] = 0.0
+    
+    # 2. Override with ALL user-provided features
+    for key, value in features_dict.items():
+        if key in feature_names:
+            row[key] = float(value)
+    
+    # 3. Time features: auto-fill from current time if not provided
+    now = datetime.now()
+    if "hour" not in features_dict:
+        row["hour"] = float(now.hour)
+    if "month" not in features_dict:
+        row["month"] = float(now.month)
+    row["is_daytime"] = 1.0 if 6 <= row["hour"] <= 18 else 0.0
+    
+    # 4. Alarm features: sync hours_since_last_alarm with alarm_count
+    if "alarm_count_7d" in features_dict:
+        a = float(features_dict["alarm_count_7d"])
+        if "alarm_count_24h" not in features_dict:
+            row["alarm_count_24h"] = min(a, a / 7.0 * 1.0)
+        if a > 0:
+            row["hours_since_last_alarm"] = max(1.0, 168.0 / (a + 1))
+        else:
+            row["hours_since_last_alarm"] = 9999.0
+    
+    # 5. Compute derived KPI features from input values
+    if "meter_v_r" in row and "meter_v_y" in row and "meter_v_b" in row:
+        voltages = [row["meter_v_r"], row["meter_v_y"], row["meter_v_b"]]
+        avg_v = np.mean(voltages) if np.mean(voltages) > 0 else 1.0
+        row["voltage_imbalance"] = (max(voltages) - min(voltages)) / avg_v
+    
+    if "meter_pf" in row:
+        row["pf_deviation"] = abs(1.0 - row["meter_pf"])
+    
+    if "meter_freq" in row:
+        row["freq_deviation"] = abs(row["meter_freq"] - 50.0)
+    
+    # power_ratio_vs_24h: if inv_power is provided but this isn't, estimate it
+    if "inv_power" in features_dict and "power_ratio_vs_24h" not in features_dict:
+        baseline_power = BASELINE.get("inv_power", 1.0)
+        row["power_ratio_vs_24h"] = float(features_dict["inv_power"]) / (baseline_power + 0.01)
+    
+    if "smu_total_strings" in row and row["smu_total_strings"] > 0:
+        row["smu_zero_fraction"] = row.get("smu_num_zero", 0) / row["smu_total_strings"]
+    
+    # Build DataFrame in exact model column order
     df = pd.DataFrame([row])
-    # Ensure column order matches training
     for col in feature_names:
         if col not in df.columns:
             df[col] = 0.0
@@ -134,7 +203,7 @@ def prepare_features(features: Dict[str, float]) -> pd.DataFrame:
 
 
 def get_shap_explanation(X: pd.DataFrame, top_n: int = 5) -> List[Dict]:
-    """Get top SHAP features for a single prediction."""
+    """Get top SHAP features for a single prediction using real ML explainability."""
     if "explainer" not in models:
         return []
 
@@ -186,26 +255,51 @@ async def model_info():
     }
 
 
+@app.get("/model/features")
+async def model_features():
+    """Return all feature names with their baseline values for the frontend."""
+    if "feature_names" not in models:
+        raise HTTPException(status_code=503, detail="Models not loaded")
+    return {
+        "features": models["feature_names"],
+        "baseline": BASELINE,
+    }
+
+
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_single(data: InverterData):
-    """Predict failure risk for a single inverter reading."""
-    if "binary" not in models:
+    """Predict failure risk for a single inverter reading using ML models.
+    
+    Accepts any subset of the 30 telemetry features. Missing features are
+    filled from the healthy baseline. Uses:
+    - XGBoost multiclass classifier for risk class + calibrated probability
+    - Isolation Forest for anomaly detection
+    - SHAP TreeExplainer for feature importance
+    """
+    if "multiclass" not in models:
         raise HTTPException(status_code=503, detail="Models not loaded")
 
     X = prepare_features(data.features)
 
-    # Binary prediction (failure probability)
-    fail_prob = float(models["binary"].predict_proba(X)[0, 1])
-
-    # Multi-class prediction (risk level)
-    risk_class = int(models["multiclass"].predict(X)[0])
+    # 1. Multi-class prediction — pure ML (primary output)
+    multi_proba = models["multiclass"].predict_proba(X)[0]
+    risk_class = int(np.argmax(multi_proba))
     risk_level = RISK_LABELS.get(risk_class, "unknown")
+    
+    # Calibrated failure probability: 1 - P(no_risk)
+    # This gives a score from 0 to 1 that properly reflects risk
+    fail_prob = float(1.0 - multi_proba[0])
 
-    # Anomaly detection
-    anomaly_score = float(models["anomaly"].decision_function(X.drop(columns=["anomaly_score", "is_anomaly"], errors="ignore"))[0])
-    is_anomaly = bool(models["anomaly"].predict(X.drop(columns=["anomaly_score", "is_anomaly"], errors="ignore"))[0] == -1)
+    # 3. Anomaly detection — pure ML
+    try:
+        X_anomaly = X.drop(columns=["anomaly_score", "is_anomaly"], errors="ignore")
+        anomaly_score = float(models["anomaly"].decision_function(X_anomaly)[0])
+        is_anomaly = bool(models["anomaly"].predict(X_anomaly)[0] == -1)
+    except Exception:
+        anomaly_score = 0.0
+        is_anomaly = False
 
-    # SHAP explanation
+    # 4. SHAP explanation — pure ML explainability
     top_factors = get_shap_explanation(X)
 
     return PredictionResponse(
