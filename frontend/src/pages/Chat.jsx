@@ -1,141 +1,94 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Bot, User, Sparkles } from 'lucide-react'
+import { Send, Bot, User } from 'lucide-react'
 import { postChat } from '../api'
 
-const fadeUp = {
-    initial: { opacity: 0, y: 16 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] }
-}
-
-const QUICK_QUESTIONS = [
-    'What are the most important failure indicators?',
-    'What maintenance do you recommend?',
-    'How does SHAP explain predictions?',
-    'What are the common root causes for inverter failures?',
-    'Summarize the model performance',
+const SUGGESTIONS = [
+    'What drives inverter failures?',
+    'Recommended maintenance actions',
+    'Explain SHAP feature importance',
+    'Summarize model accuracy',
 ]
 
 export default function Chat() {
-    const [messages, setMessages] = useState([
-        {
-            role: 'ai',
-            content: "Hi there — I'm the InverterShield copilot. I can help you understand failure predictions, identify risk drivers, and recommend maintenance actions. What would you like to know?",
-            source: 'system',
-        }
+    const [msgs, setMsgs] = useState([
+        { role: 'ai', text: "Hi — ask me anything about inverter health, risk factors, or maintenance planning.", src: '' }
     ])
     const [input, setInput] = useState('')
-    const [loading, setLoading] = useState(false)
-    const messagesEndRef = useRef(null)
+    const [busy, setBusy] = useState(false)
+    const bottom = useRef(null)
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages])
+    useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
 
-    const sendMessage = async (text) => {
-        const msg = text || input.trim()
-        if (!msg) return
-
-        setMessages(prev => [...prev, { role: 'user', content: msg }])
+    const send = async (text) => {
+        const q = text || input.trim()
+        if (!q) return
+        setMsgs(p => [...p, { role: 'user', text: q }])
         setInput('')
-        setLoading(true)
-
+        setBusy(true)
         try {
-            const res = await postChat(msg)
-            setMessages(prev => [...prev, {
-                role: 'ai',
-                content: res.response || 'I had trouble with that. Try again?',
-                source: res.source || 'api',
-            }])
+            const r = await postChat(q)
+            setMsgs(p => [...p, { role: 'ai', text: r.response || 'Something went wrong.', src: r.source || '' }])
         } catch {
-            setMessages(prev => [...prev, {
-                role: 'ai',
-                content: 'Could not connect to the backend. Make sure the API is running on port 8000.',
-                source: 'error',
-            }])
+            setMsgs(p => [...p, { role: 'ai', text: 'Cannot reach the API. Is the backend running on port 8000?', src: 'error' }])
         }
-
-        setLoading(false)
-    }
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            sendMessage()
-        }
+        setBusy(false)
     }
 
     return (
         <>
-            <motion.div className="page-header" {...fadeUp}>
+            <motion.div className="page-header" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <h2>AI Copilot</h2>
-                <p>Ask about inverter health, SHAP analysis, or maintenance planning</p>
+                <p>Powered by Gemini — ask about inverter diagnostics</p>
             </motion.div>
 
-            <motion.div className="bento-card" {...fadeUp} transition={{ delay: 0.05 }}
-                style={{ gridColumn: 'span 12' }}>
-                <div className="chat-container">
-                    <div className="chat-messages">
-                        {messages.map((msg, i) => (
-                            <motion.div
-                                key={i}
-                                className={`chat-message ${msg.role}`}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.25 }}
-                            >
-                                <div className={`chat-avatar ${msg.role}`}>
-                                    {msg.role === 'ai' ? <Bot size={14} /> : <User size={14} />}
+            <div className="card rise">
+                <div className="chat-wrap">
+                    <div className="chat-feed">
+                        {msgs.map((m, i) => (
+                            <div key={i} className={`msg ${m.role === 'user' ? 'from-user' : ''}`}>
+                                <div className={`msg-avatar ${m.role === 'ai' ? 'bot' : 'human'}`}>
+                                    {m.role === 'ai' ? <Bot size={13} /> : <User size={13} />}
                                 </div>
-                                <div className="chat-bubble">
-                                    <div style={{ whiteSpace: 'pre-wrap' }}>
-                                        {msg.content.split('**').map((part, j) =>
-                                            j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-                                        )}
-                                    </div>
-                                    {msg.source && msg.role === 'ai' && msg.source !== 'system' && (
-                                        <div className="source-tag">
-                                            <Sparkles size={9} style={{ display: 'inline', marginRight: 3, verticalAlign: 'middle' }} />
-                                            {msg.source}
-                                        </div>
+                                <div className="msg-body">
+                                    {m.text}
+                                    {m.src && m.src !== 'error' && m.src !== '' && (
+                                        <span className="src">via {m.src}</span>
                                     )}
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
-
-                        {loading && (
-                            <motion.div className="chat-message ai" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                <div className="chat-avatar ai"><Bot size={14} /></div>
-                                <div className="chat-bubble" style={{ color: '#bfbfbf' }}>Thinking…</div>
-                            </motion.div>
+                        {busy && (
+                            <div className="msg">
+                                <div className="msg-avatar bot"><Bot size={13} /></div>
+                                <div className="msg-body" style={{ color: '#c4c4c4' }}>Thinking…</div>
+                            </div>
                         )}
-                        <div ref={messagesEndRef} />
+                        <div ref={bottom} />
                     </div>
 
-                    <div className="chat-input-container">
-                        <input
-                            className="chat-input"
-                            placeholder="Ask about inverter health, SHAP features, maintenance…"
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            disabled={loading}
-                        />
-                        <button className="chat-send-btn" onClick={() => sendMessage()} disabled={loading}>
-                            <Send size={16} />
-                        </button>
-                    </div>
-
-                    <div className="quick-actions">
-                        {QUICK_QUESTIONS.map((q, i) => (
-                            <button key={i} className="quick-action-btn" onClick={() => sendMessage(q)}>
-                                {q}
+                    <div className="chat-bottom">
+                        <div className="chat-row">
+                            <input
+                                className="chat-input"
+                                placeholder="Ask a question…"
+                                value={input}
+                                onChange={e => setInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
+                                disabled={busy}
+                            />
+                            <button className="chat-send" onClick={() => send()} disabled={busy}>
+                                <Send size={15} />
                             </button>
-                        ))}
+                        </div>
+                        <div className="suggestions">
+                            {SUGGESTIONS.map((s, i) => (
+                                <button key={i} className="sug-btn" onClick={() => send(s)}>{s}</button>
+                            ))}
+                        </div>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </>
     )
 }
